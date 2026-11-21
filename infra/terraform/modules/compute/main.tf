@@ -60,11 +60,12 @@ resource "google_artifact_registry_repository" "platform" {
 }
 
 resource "google_cloud_run_v2_job" "dbt_build" {
-  count    = var.deploy_cloud_run ? 1 : 0
-  project  = var.project_id
-  name     = "payments-dbt-build"
-  location = var.region
-  labels   = var.labels
+  count               = var.deploy_cloud_run ? 1 : 0
+  project             = var.project_id
+  name                = "payments-dbt-build"
+  location            = var.region
+  deletion_protection = false
+  labels              = var.labels
 
   template {
     template {
@@ -95,12 +96,13 @@ resource "google_cloud_run_v2_job" "dbt_build" {
 }
 
 resource "google_cloud_run_v2_service" "ai_copilot" {
-  count    = var.deploy_cloud_run ? 1 : 0
-  project  = var.project_id
-  name     = "payments-semantic-ai-copilot"
-  location = var.region
-  ingress  = "INGRESS_TRAFFIC_ALL"
-  labels   = var.labels
+  count               = var.deploy_cloud_run ? 1 : 0
+  project             = var.project_id
+  name                = "payments-semantic-ai-copilot"
+  location            = var.region
+  ingress             = "INGRESS_TRAFFIC_ALL"
+  deletion_protection = false
+  labels              = var.labels
 
   template {
     service_account = var.copilot_service_account
