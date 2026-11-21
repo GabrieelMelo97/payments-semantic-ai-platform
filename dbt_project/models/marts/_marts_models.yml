@@ -1,0 +1,106 @@
+version: 2
+
+models:
+  - name: metricflow_time_spine
+    description: "Daily calendar spine required by dbt Semantic Layer / MetricFlow."
+    time_spine:
+      standard_granularity_column: date_day
+    columns:
+      - name: date_day
+        granularity: day
+        tests: [not_null, unique]
+
+  - name: dim_date
+    description: "Calendar date dimension."
+    columns:
+      - name: date_day
+        tests: [not_null, unique]
+
+  - name: dim_merchants
+    description: "Conformed merchant dimension enriched with historical SCD2 MDR rate summaries."
+    access: public
+    columns:
+      - name: merchant_id
+        tests: [not_null, unique]
+      - name: region
+        tests: [not_null]
+      - name: mcc_category
+        tests: [not_null]
+
+  - name: fct_payments
+    description: >-
+      Core incremental fact table at 1-row-per-deduplicated-payment-attempt grain.
+      Serves as the single source of truth for the Governed Semantic Layer & AI Copilot.
+    access: public
+    config:
+      contract:
+        enforced: true
+    columns:
+      - name: transaction_id
+        data_type: string
+        constraints:
+          - type: not_null
+        tests: [not_null, unique]
+      - name: merchant_id
+        data_type: string
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_merchants')
+              field: merchant_id
+      - name: created_at
+        data_type: timestamp
+      - name: transaction_date
+        data_type: date
+        tests: [not_null]
+      - name: merchant_name
+        data_type: string
+      - name: mcc_category
+        data_type: string
+      - name: region
+        data_type: string
+      - name: merchant_tier
+        data_type: string
+      - name: payment_method
+        data_type: string
+      - name: card_brand
+        data_type: string
+      - name: installments
+        data_type: integer
+      - name: gross_amount_brl
+        data_type: float
+      - name: status
+        data_type: string
+      - name: decline_reason
+        data_type: string
+      - name: is_approved
+        data_type: boolean
+      - name: applied_mdr_rate_bps
+        data_type: float
+      - name: applied_interchange_rate_bps
+        data_type: float
+      - name: chargeback_count
+        data_type: bigint
+      - name: latest_dispute_date
+        data_type: date
+      - name: approved_tpv_brl
+        data_type: float
+      - name: mdr_fee_brl
+        data_type: float
+      - name: interchange_cost_brl
+        data_type: float
+      - name: chargeback_loss_brl
+        data_type: float
+      - name: net_revenue_brl
+        data_type: float
+      - name: net_settlement_brl
+        data_type: float
+
+  - name: fct_daily_payment_metrics
+    description: "Pre-aggregated daily FinOps mart partitioned by transaction_date for low-latency BI."
+    access: public
+    columns:
+      - name: transaction_date
+        tests: [not_null]
+      - name: gross_tpv_brl
+        tests: [not_null]

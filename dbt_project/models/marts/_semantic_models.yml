@@ -1,0 +1,148 @@
+version: 2
+
+semantic_models:
+  - name: payments
+    description: "Governed FinTech payments semantic model powered by fct_payments."
+    model: ref('fct_payments')
+    defaults:
+      agg_time_dimension: transaction_date
+
+    entities:
+      - name: transaction
+        type: primary
+        expr: transaction_id
+      - name: merchant
+        type: foreign
+        expr: merchant_id
+
+    dimensions:
+      - name: transaction_date
+        type: time
+        type_params:
+          time_granularity: day
+      - name: region
+        type: categorical
+      - name: mcc_category
+        type: categorical
+      - name: merchant_tier
+        type: categorical
+      - name: payment_method
+        type: categorical
+      - name: card_brand
+        type: categorical
+
+    measures:
+      - name: gross_tpv_measure
+        description: "Sum of approved gross payment volume in BRL."
+        agg: sum
+        expr: approved_tpv_brl
+      - name: net_revenue_measure
+        description: "Net acquiring margin after interchange and lost chargebacks."
+        agg: sum
+        expr: net_revenue_brl
+      - name: mdr_revenue_measure
+        description: "Total MDR fee collected."
+        agg: sum
+        expr: mdr_fee_brl
+      - name: chargeback_loss_measure
+        description: "Total BRL lost in confirmed chargebacks."
+        agg: sum
+        expr: chargeback_loss_brl
+      - name: net_settlement_measure
+        description: "Net settlement paid out to merchants."
+        agg: sum
+        expr: net_settlement_brl
+      - name: transaction_count_measure
+        description: "Count of deduplicated payment attempts."
+        agg: count_distinct
+        expr: transaction_id
+      - name: approved_transaction_count_measure
+        description: "Count of approved payment transactions."
+        agg: sum
+        expr: "case when is_approved then 1 else 0 end"
+
+metrics:
+  - name: gross_tpv_brl
+    label: "Gross TPV (BRL)"
+    description: "Total Payment Volume of approved transactions."
+    type: simple
+    type_params:
+      measure: gross_tpv_measure
+
+  - name: net_revenue_brl
+    label: "Net Revenue (BRL)"
+    description: "Net acquiring margin (MDR - interchange - lost chargebacks)."
+    type: simple
+    type_params:
+      measure: net_revenue_measure
+
+  - name: mdr_revenue_brl
+    label: "Gross MDR Revenue (BRL)"
+    description: "Total Merchant Discount Rate fee collected."
+    type: simple
+    type_params:
+      measure: mdr_revenue_measure
+
+  - name: chargeback_loss_brl
+    label: "Chargeback Loss (BRL)"
+    description: "Total BRL lost due to confirmed chargeback disputes."
+    type: simple
+    type_params:
+      measure: chargeback_loss_measure
+
+  - name: net_settlement_brl
+    label: "Net Merchant Settlement (BRL)"
+    description: "Total net payout settled to merchants."
+    type: simple
+    type_params:
+      measure: net_settlement_measure
+
+  - name: transaction_count
+    label: "Total Transactions"
+    description: "Count of all deduplicated payment attempts."
+    type: simple
+    type_params:
+      measure: transaction_count_measure
+
+  - name: approved_transactions
+    label: "Approved Transactions"
+    description: "Count of approved payment transactions."
+    type: simple
+    type_params:
+      measure: approved_transaction_count_measure
+
+  - name: approval_rate
+    label: "Approval Rate (%)"
+    description: "Approved transactions divided by total attempts."
+    type: ratio
+    type_params:
+      numerator: approved_transactions
+      denominator: transaction_count
+
+  - name: net_take_rate_bps
+    label: "Net Take-Rate (bps)"
+    description: "Net revenue divided by Gross TPV expressed in basis points."
+    type: derived
+    type_params:
+      expr: "(net_revenue_brl / nullif(gross_tpv_brl, 0)) * 10000"
+      metrics:
+        - name: net_revenue_brl
+        - name: gross_tpv_brl
+
+  - name: chargeback_rate_bps
+    label: "Chargeback Rate (bps)"
+    description: "Lost chargeback volume divided by Gross TPV in basis points."
+    type: derived
+    type_params:
+      expr: "(chargeback_loss_brl / nullif(gross_tpv_brl, 0)) * 10000"
+      metrics:
+        - name: chargeback_loss_brl
+        - name: gross_tpv_brl
+
+  - name: avg_ticket_brl
+    label: "Average Ticket (BRL)"
+    description: "Average gross amount per approved transaction."
+    type: ratio
+    type_params:
+      numerator: gross_tpv_brl
+      denominator: approved_transactions

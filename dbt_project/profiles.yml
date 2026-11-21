@@ -1,0 +1,18 @@
+payments_semantic_platform:
+  target: local
+  outputs:
+    local:
+      type: duckdb
+      path: "{{ env_var('DUCKDB_PATH', 'data/payments_warehouse.duckdb') }}"
+      threads: 4
+
+    bigquery:
+      type: bigquery
+      method: oauth
+      project: "{{ env_var('GCP_PROJECT_ID') }}"
+      dataset: "{{ env_var('BQ_DATASET_MARTS', 'payments_marts') }}"
+      location: "{{ env_var('GCP_REGION', 'us-central1') }}"
+      threads: 4
+      priority: interactive
+      timeout_seconds: 300
+      maximum_bytes_billed: 104857600

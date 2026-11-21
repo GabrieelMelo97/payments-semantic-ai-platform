@@ -1,0 +1,34 @@
+version: 2
+
+models:
+  - name: int_transactions_enriched
+    description: >-
+      Intermediate view joining deduplicated transactions with SCD Type 2
+      historical merchant MDR rates and pre-aggregated late-arriving chargebacks (preventing fan-out).
+
+unit_tests:
+  - name: test_int_transactions_enriched_financial_and_pix_rules
+    description: >-
+      Validates core FinTech accounting rules: Pix pays 35% MDR and 0 interchange,
+      declined transactions yield 0 TPV/fees, and lost chargebacks reduce net revenue and settlement.
+    model: int_transactions_enriched
+    given:
+      - input: ref('stg_transactions')
+        rows:
+          - {transaction_id: 'TX-U1', merchant_id: 'MRC-1', created_at: '2026-10-01 10:00:00', transaction_date: '2026-10-01', payment_method: 'credit_card', card_brand: 'visa', installments: 1, gross_amount_brl: 1000.0, status: 'approved', decline_reason: null}
+          - {transaction_id: 'TX-U2', merchant_id: 'MRC-1', created_at: '2026-10-01 11:00:00', transaction_date: '2026-10-01', payment_method: 'pix', card_brand: 'pix_instant', installments: 1, gross_amount_brl: 1000.0, status: 'approved', decline_reason: null}
+          - {transaction_id: 'TX-U3', merchant_id: 'MRC-1', created_at: '2026-10-01 12:00:00', transaction_date: '2026-10-01', payment_method: 'credit_card', card_brand: 'visa', installments: 1, gross_amount_brl: 500.0, status: 'declined', decline_reason: 'insufficient_funds'}
+      - input: ref('stg_merchants')
+        rows:
+          - {merchant_id: 'MRC-1', merchant_name: 'Unit Test Store', mcc_category: 'ecommerce', region: 'Sudeste', merchant_tier: 'SMB', current_mdr_rate_bps: 300.0, current_interchange_rate_bps: 150.0, updated_at: '2026-09-01 00:00:00'}
+      - input: ref('stg_merchant_mdr_history')
+        rows:
+          - {merchant_id: 'MRC-1', mdr_rate_bps: 300.0, interchange_rate_bps: 150.0, valid_from: '2026-09-01 00:00:00', valid_to: '2099-12-31 23:59:59'}
+      - input: ref('stg_chargebacks')
+        rows:
+          - {chargeback_id: 'CB-U1', transaction_id: 'TX-U1', dispute_date: '2026-10-10', reason_code: 'fraud_card_not_present', disputed_amount_brl: 1000.0, dispute_status: 'lost'}
+    expect:
+      rows:
+        - {transaction_id: 'TX-U1', approved_tpv_brl: 1000.0, mdr_fee_brl: 30.0, interchange_cost_brl: 15.0, chargeback_loss_brl: 1000.0, net_revenue_brl: -985.0, net_settlement_brl: -30.0}
+        - {transaction_id: 'TX-U2', approved_tpv_brl: 1000.0, mdr_fee_brl: 10.5, interchange_cost_brl: 0.0, chargeback_loss_brl: 0.0, net_revenue_brl: 10.5, net_settlement_brl: 989.5}
+        - {transaction_id: 'TX-U3', approved_tpv_brl: 0.0, mdr_fee_brl: 0.0, interchange_cost_brl: 0.0, chargeback_loss_brl: 0.0, net_revenue_brl: 0.0, net_settlement_brl: 0.0}

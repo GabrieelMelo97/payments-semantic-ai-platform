@@ -1,0 +1,125 @@
+version: "1.0.0"
+semantic_layer_engine: "dbt-metricflow-compatible"
+source_mart: "fct_payments"
+owner: "analytics-engineering@fintech-payments"
+
+dimensions:
+  transaction_date:
+    type: "time"
+    granularities: ["day", "week", "month"]
+    sql_expr: "transaction_date"
+    description: "Calendar date of the payment transaction."
+  region:
+    type: "categorical"
+    sql_expr: "region"
+    allowed_values: ["Sudeste", "Sul", "Nordeste", "Centro-Oeste", "Norte"]
+    description: "Brazilian geographic macro-region of the merchant."
+  mcc_category:
+    type: "categorical"
+    sql_expr: "mcc_category"
+    allowed_values: ["ecommerce", "grocery", "restaurants", "travel", "saas_digital", "electronics"]
+    description: "Merchant Category Code business vertical."
+  merchant_tier:
+    type: "categorical"
+    sql_expr: "merchant_tier"
+    allowed_values: ["SMB", "Mid-Market", "Enterprise"]
+    description: "Commercial segment of the merchant."
+  payment_method:
+    type: "categorical"
+    sql_expr: "payment_method"
+    allowed_values: ["credit_card", "debit_card", "pix"]
+    description: "Payment rail used by the payer."
+  card_brand:
+    type: "categorical"
+    sql_expr: "card_brand"
+    allowed_values: ["visa", "mastercard", "elo", "pix_instant"]
+    description: "Card network or instant rail."
+
+metrics:
+  gross_tpv_brl:
+    label: "Gross TPV (BRL)"
+    type: "simple"
+    format: "currency_brl"
+    description: "Total Payment Volume of approved transactions (excludes declined and refunded)."
+    sql_expr: "sum(case when is_approved then gross_amount_brl else 0 end)"
+    synonyms: ["tpv", "volume", "total payment volume", "faturamento", "volume transacionado"]
+
+  net_revenue_brl:
+    label: "Net Revenue (BRL)"
+    type: "simple"
+    format: "currency_brl"
+    description: "Net acquiring margin: MDR fee revenue minus interchange cost and lost chargeback exposure."
+    sql_expr: "sum(net_revenue_brl)"
+    synonyms: ["receita liquida", "net revenue", "margem liquida", "lucro", "margin"]
+
+  mdr_revenue_brl:
+    label: "Gross MDR Revenue (BRL)"
+    type: "simple"
+    format: "currency_brl"
+    description: "Total Merchant Discount Rate fee collected on approved transactions using historical SCD2 rates."
+    sql_expr: "sum(mdr_fee_brl)"
+    synonyms: ["mdr", "receita de taxa", "fee revenue", "taxa mdr"]
+
+  chargeback_loss_brl:
+    label: "Chargeback Loss (BRL)"
+    type: "simple"
+    format: "currency_brl"
+    description: "Total BRL lost due to confirmed (lost) chargeback disputes."
+    sql_expr: "sum(chargeback_loss_brl)"
+    synonyms: ["chargeback", "perda chargeback", "fraude", "disputa", "estorno fraude"]
+
+  net_settlement_brl:
+    label: "Net Merchant Settlement (BRL)"
+    type: "simple"
+    format: "currency_brl"
+    description: "Total net payout settled to merchants (Gross TPV - MDR Fee - Lost Chargebacks)."
+    sql_expr: "sum(net_settlement_brl)"
+    synonyms: ["liquidacao", "settlement", "repasse"]
+
+  transaction_count:
+    label: "Total Transactions"
+    type: "simple"
+    format: "integer"
+    description: "Count of all deduplicated payment attempts."
+    sql_expr: "count(distinct transaction_id)"
+    synonyms: ["transacoes", "quantidade", "contagem", "transactions", "volume de transacoes"]
+
+  approved_transactions:
+    label: "Approved Transactions"
+    type: "simple"
+    format: "integer"
+    description: "Count of approved payment transactions."
+    sql_expr: "sum(case when is_approved then 1 else 0 end)"
+    synonyms: ["transacoes aprovadas", "approved transactions", "aprovadas"]
+
+  approval_rate:
+    label: "Approval Rate (%)"
+    type: "ratio"
+    format: "percentage"
+    description: "Share of payment attempts that were approved (approved / total attempts)."
+    sql_expr: "coalesce(sum(case when is_approved then 1.0 else 0.0 end) / nullif(count(distinct transaction_id), 0), 0.0)"
+    synonyms: ["taxa de aprovacao", "approval rate", "aprovacao", "conversao"]
+
+  net_take_rate_bps:
+    label: "Net Take-Rate (bps)"
+    type: "ratio"
+    format: "bps"
+    description: "Net revenue divided by Gross TPV expressed in basis points (100 bps = 1%)."
+    sql_expr: "coalesce((sum(net_revenue_brl) / nullif(sum(case when is_approved then gross_amount_brl else 0 end), 0)) * 10000.0, 0.0)"
+    synonyms: ["take rate", "take-rate", "net take rate", "spread", "bps"]
+
+  chargeback_rate_bps:
+    label: "Chargeback Rate (bps)"
+    type: "ratio"
+    format: "bps"
+    description: "Lost chargeback volume divided by Gross TPV in basis points (card network risk threshold: 100 bps)."
+    sql_expr: "coalesce((sum(chargeback_loss_brl) / nullif(sum(case when is_approved then gross_amount_brl else 0 end), 0)) * 10000.0, 0.0)"
+    synonyms: ["taxa de chargeback", "chargeback rate", "indice de fraude", "risco"]
+
+  avg_ticket_brl:
+    label: "Average Ticket (BRL)"
+    type: "ratio"
+    format: "currency_brl"
+    description: "Average gross amount per approved transaction."
+    sql_expr: "coalesce(sum(case when is_approved then gross_amount_brl else 0 end) / nullif(sum(case when is_approved then 1.0 else 0.0 end), 0), 0.0)"
+    synonyms: ["ticket medio", "avg ticket", "average ticket", "valor medio"]
