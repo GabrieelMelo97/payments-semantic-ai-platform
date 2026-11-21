@@ -1,0 +1,75 @@
+name: CI — Analytics Engineering, AI Evals & Terraform IaC
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  code-data-and-ai-evals:
+    name: Code Lint, dbt Build (DuckDB) & AI Copilot Evals
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Set up Python 3.11
+        run: uv python install 3.11
+
+      - name: Install dependencies
+        run: uv sync --python 3.11 --extra dev
+
+      - name: Lint Python (ruff)
+        run: |
+          uv run ruff check src tests
+          uv run ruff format --check src tests
+
+      - name: Run E2E Local Pipeline & dbt Build
+        run: |
+          uv run python -m payments_platform.cli generate
+          uv run python -m payments_platform.cli ingest
+          uv run dbt build --project-dir dbt_project --profiles-dir dbt_project --target local
+
+      - name: Lint SQL (sqlfluff with dbt templater)
+        run: uv run sqlfluff lint dbt_project/models --dialect duckdb
+
+      - name: Run Pytest Suite & AI Copilot Evals
+        run: uv run pytest
+
+  iac-quality-and-security:
+    name: Terraform Format, Validate & Trivy Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.11.2"
+
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive infra/terraform
+
+      - name: Terraform Init & Validate (dev)
+        working-directory: infra/terraform/environments/dev
+        run: |
+          terraform init -backend=false
+          terraform validate
+
+      - name: Trivy IaC Misconfiguration Scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: "config"
+          scan-ref: "infra/terraform"
+          severity: "CRITICAL,HIGH"
+          exit-code: "1"

@@ -1,0 +1,47 @@
+version: "1.0.0"
+owner: "analytics-engineering@fintech-payments"
+domain: "payments-acquiring"
+sla:
+  freshness_max_hours: 24
+  max_quarantine_rate: 0.05
+  idempotency: "merge_or_replace_by_primary_key"
+
+datasets:
+  raw_merchants:
+    primary_key: ["merchant_id"]
+    description: "Master merchant registry with MCC, region, tier, and current MDR fee rate."
+    columns:
+      merchant_id: { type: "string", nullable: false }
+      merchant_name: { type: "string", nullable: false }
+      mcc_category: { type: "string", nullable: false, allowed_values: ["ecommerce", "grocery", "restaurants", "travel", "saas_digital", "electronics"] }
+      region: { type: "string", nullable: false, allowed_values: ["Sudeste", "Sul", "Nordeste", "Centro-Oeste", "Norte"] }
+      tier: { type: "string", nullable: false, allowed_values: ["SMB", "Mid-Market", "Enterprise"] }
+      mdr_rate_bps: { type: "float", nullable: false, min: 50.0, max: 600.0 }
+      interchange_rate_bps: { type: "float", nullable: false, min: 20.0, max: 350.0 }
+      updated_at: { type: "timestamp", nullable: false }
+
+  raw_transactions:
+    primary_key: ["transaction_id"]
+    description: "Payment authorization and capture events (may contain upstream duplicates and corrupt rows quarantined at ingestion)."
+    columns:
+      transaction_id: { type: "string", nullable: false }
+      merchant_id: { type: "string", nullable: false }
+      created_at: { type: "timestamp", nullable: false }
+      transaction_date: { type: "date", nullable: false }
+      payment_method: { type: "string", nullable: false, allowed_values: ["credit_card", "debit_card", "pix"] }
+      card_brand: { type: "string", nullable: false, allowed_values: ["visa", "mastercard", "elo", "pix_instant"] }
+      installments: { type: "integer", nullable: false, min: 1, max: 12 }
+      gross_amount_brl: { type: "float", nullable: false, min: 0.01, max: 500000.0 }
+      status: { type: "string", nullable: false, allowed_values: ["approved", "declined", "refunded"] }
+      decline_reason: { type: "string", nullable: true }
+
+  raw_chargebacks:
+    primary_key: ["chargeback_id"]
+    description: "Dispute/chargeback events that can arrive up to 30 days after the original transaction (late-arriving facts)."
+    columns:
+      chargeback_id: { type: "string", nullable: false }
+      transaction_id: { type: "string", nullable: false }
+      dispute_date: { type: "date", nullable: false }
+      reason_code: { type: "string", nullable: false, allowed_values: ["fraud_card_not_present", "merchandise_not_received", "duplicate_processing", "unrecognized_charge"] }
+      disputed_amount_brl: { type: "float", nullable: false, min: 0.01 }
+      dispute_status: { type: "string", nullable: false, allowed_values: ["lost", "won", "under_review"] }

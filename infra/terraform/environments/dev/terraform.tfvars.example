@@ -1,0 +1,9 @@
+# Copy this file to terraform.tfvars (gitignored) and set your real GCP project ID.
+# NEVER commit terraform.tfvars to version control.
+
+project_id         = "your-gcp-project-id"
+region             = "us-central1"
+environment        = "dev"
+billing_account_id = ""
+monthly_budget_usd = 15
+deploy_cloud_run   = false

@@ -1,0 +1,29 @@
+version: 2
+
+exposures:
+  - name: payments_ai_analytics_copilot
+    label: "Governed AI Analytics Copilot (FastAPI + Gemini Vertex AI)"
+    type: application
+    maturity: high
+    description: >-
+      Conversational BI Copilot that translates natural language questions into
+      governed Semantic Layer queries (zero raw LLM SQL).
+    depends_on:
+      - ref('fct_payments')
+      - ref('dim_merchants')
+    owner:
+      name: "Analytics Engineering & Risk"
+      email: "analytics-engineering@fintech-payments.example"
+
+  - name: executive_payments_dashboard
+    label: "Executive Payments & Risk BI (Streamlit)"
+    type: dashboard
+    maturity: high
+    description: "Interactive KPI dashboard for Finance, Product, and Fraud Risk leadership."
+    depends_on:
+      - ref('fct_payments')
+      - ref('fct_daily_payment_metrics')
+      - ref('dim_merchants')
+    owner:
+      name: "Finance & Risk Leadership"
+      email: "finance-risk@fintech-payments.example"
