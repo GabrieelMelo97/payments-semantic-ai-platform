@@ -1,0 +1,24 @@
+[sqlfluff]
+dialect = duckdb
+templater = dbt
+exclude_rules = LT05,AM04,RF04,AL01,ST06,RF02
+max_line_length = 120
+
+[sqlfluff:templater:dbt]
+project_dir = dbt_project
+profiles_dir = dbt_project
+profile = payments_semantic_platform
+target = local
+
+[sqlfluff:indentation]
+indent_unit = space
+tab_space_size = 4
+
+[sqlfluff:rules:capitalisation.keywords]
+capitalisation_policy = lower
+
+[sqlfluff:rules:capitalisation.identifiers]
+extended_capitalisation_policy = lower
+
+[sqlfluff:rules:capitalisation.functions]
+extended_capitalisation_policy = lower

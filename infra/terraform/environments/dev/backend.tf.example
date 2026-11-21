@@ -1,0 +1,9 @@
+# Rename to backend.tf to enable remote Terraform state in GCS with state locking.
+# Create the state bucket first with versioning enabled.
+#
+# terraform {
+#   backend "gcs" {
+#     bucket = "your-gcp-project-id-tfstate"
+#     prefix = "payments-semantic-ai-platform/dev"
+#   }
+# }

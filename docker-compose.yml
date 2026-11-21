@@ -1,0 +1,29 @@
+services:
+  api:
+    build: .
+    container_name: payments-semantic-api
+    env_file:
+      - .env.example
+    environment:
+      APP_ENV: local
+      AI_PROVIDER: deterministic
+    ports:
+      - "8000:8080"
+    volumes:
+      - ./data:/app/data
+
+  ui:
+    build: .
+    container_name: payments-semantic-ui
+    command: ["streamlit", "run", "src/payments_platform/app/streamlit_app.py", "--server.port=8501", "--server.address=0.0.0.0"]
+    env_file:
+      - .env.example
+    environment:
+      APP_ENV: local
+      AI_PROVIDER: deterministic
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      - api
