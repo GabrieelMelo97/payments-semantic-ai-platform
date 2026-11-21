@@ -228,7 +228,12 @@ def ingest_gcp_bigquery(settings: Settings) -> IngestionSummary:
 
     for table_name, df in tables.items():
         local_pq = validated_dir / f"{table_name}.parquet"
-        df.to_parquet(local_pq, index=False)
+        df.to_parquet(
+            local_pq,
+            index=False,
+            coerce_timestamps="us",
+            allow_truncated_timestamps=True,
+        )
 
         blob_path = f"payments/validated/{table_name}.parquet"
         bucket.blob(blob_path).upload_from_filename(str(local_pq))
