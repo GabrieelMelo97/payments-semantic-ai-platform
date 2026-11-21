@@ -163,3 +163,75 @@ output "copilot_service_uri" {
   value       = var.deploy_cloud_run ? google_cloud_run_v2_service.ai_copilot[0].uri : "not-deployed-yet"
   description = "Cloud Run AI Copilot HTTPS URI."
 }
+
+resource "google_cloud_run_v2_service" "streamlit_ui" {
+  count               = var.deploy_cloud_run ? 1 : 0
+  project             = var.project_id
+  name                = "payments-semantic-streamlit-ui"
+  location            = var.region
+  ingress             = "INGRESS_TRAFFIC_ALL"
+  deletion_protection = false
+  labels              = var.labels
+
+  template {
+    service_account = var.copilot_service_account
+
+    scaling {
+      min_instance_count = 0
+      max_instance_count = 2
+    }
+
+    containers {
+      image = var.container_image
+      command = [
+        "streamlit",
+        "run",
+        "src/payments_platform/app/streamlit_app.py",
+        "--server.port=8080",
+        "--server.address=0.0.0.0",
+        "--server.headless=true",
+      ]
+
+      ports {
+        container_port = 8080
+      }
+
+      env {
+        name  = "APP_ENV"
+        value = "gcp"
+      }
+      env {
+        name  = "AI_PROVIDER"
+        value = "vertex_ai"
+      }
+      env {
+        name  = "GCP_PROJECT_ID"
+        value = var.project_id
+      }
+      env {
+        name  = "GCP_REGION"
+        value = var.region
+      }
+      env {
+        name  = "GCS_RAW_BUCKET"
+        value = var.raw_bucket_name
+      }
+      env {
+        name  = "GEMINI_MODEL"
+        value = var.gemini_model
+      }
+
+      resources {
+        limits = {
+          cpu    = "1"
+          memory = "1Gi"
+        }
+      }
+    }
+  }
+}
+
+output "streamlit_ui_uri" {
+  value       = var.deploy_cloud_run ? google_cloud_run_v2_service.streamlit_ui[0].uri : "not-deployed-yet"
+  description = "Cloud Run Streamlit Executive BI & AI Copilot HTTPS URI."
+}

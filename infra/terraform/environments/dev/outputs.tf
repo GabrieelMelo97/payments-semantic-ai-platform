@@ -23,6 +23,11 @@ output "copilot_service_uri" {
   description = "Cloud Run AI Copilot HTTPS URI."
 }
 
+output "streamlit_ui_uri" {
+  value       = module.compute.streamlit_ui_uri
+  description = "Cloud Run Streamlit UI HTTPS URI."
+}
+
 output "budget_alert_enabled" {
   value       = module.finops.budget_alert_enabled
   description = "Whether FinOps budget alert is enabled."
